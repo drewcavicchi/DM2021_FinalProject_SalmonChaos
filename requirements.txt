@@ -1,0 +1,9 @@
+jupyterlab
+numpy
+pandas
+zhon
+ckiptagger
+sklearn
+openpyxl
+tensorflow
+gdown
