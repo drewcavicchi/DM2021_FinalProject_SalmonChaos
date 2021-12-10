@@ -9,8 +9,6 @@ Original file is located at
 
 #!pip install sentence_transformers
 
-import os
-import pandas as pd
 from sentence_transformers import CrossEncoder, InputExample
 from sentence_transformers.cross_encoder.evaluation import CEBinaryClassificationEvaluator
 from torch.utils.data import DataLoader
@@ -58,11 +56,11 @@ def get_pairs_label_lists(fpath):
 
 train_data_loader = DataLoader(train_pair_examples, batch_size=batch_size, shuffle=True)
 
-pairs, labels = get_pairs_label_lists('drive/MyDrive/all_pairs_balanced.tsv')
+pairs, labels = get_pairs_label_lists('all_pairs_balanced.tsv')
 
 evaluator = CEBinaryClassificationEvaluator(pairs, labels)
 
-model_save_path = 'drive/MyDrive/bert_chinese_doc_pair_ce_classifier'
+model_save_path = 'bert_chinese_doc_pair_ce_classifier'
 
 model.fit(train_dataloader=train_data_loader, epochs=4,
           output_path=model_save_path, evaluator=evaluator, evaluation_steps=500)
