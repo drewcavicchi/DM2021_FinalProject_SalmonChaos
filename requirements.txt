@@ -7,3 +7,4 @@ sklearn
 openpyxl
 tensorflow
 gdown
+sentence_transformers
