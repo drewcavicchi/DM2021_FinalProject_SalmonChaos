@@ -6,6 +6,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import csv
 import itertools
+import gensim
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
+from gensim.models.doc2vec import Doc2Vec
 
 def correctly_read_csv(fname):
     prep_df = pd.read_csv(fname, converters={"tokens_rep": literal_eval, "tokens": literal_eval, "reference": literal_eval})
@@ -270,6 +273,27 @@ def tfidf_cosine_matches(df, tfidf, doc_tokens_col, THRESH):
     guesses_output = create_guess_output(rank_probs, rank_inds, doc_ids, THRESH)
     return guesses_output
 
+def create_guess_output_d2v(model, doc_ids, THRESH):
+    """
+    Returns a df that contains doc_id and matching reference docs
+    THRESH controls threshold of match probability   
+    """
+    dict_list = list()
+    for i in range(len(doc_ids)):
+        similar_docs = model.docvecs.most_similar(str(doc_ids[i]), topn=len(model.dv))
+        this_ind = 0
+        prob = similar_docs[this_ind][1]
+        while prob >= THRESH:
+            new_row = {'Test' :doc_ids[i], "Reference": int(similar_docs[this_ind][0])}   
+            dict_list.append(new_row)         
+            this_ind += 1
+            try:
+                prob = similar_docs[this_ind][1]
+            except:
+                prob = THRESH-1
+    output_df = pd.DataFrame(dict_list)
+    return output_df
+
 def multiprocess_tfidf(combo, df, training_labels):
     print(combo)
     tfidf = TfidfVectorizer(
@@ -286,6 +310,30 @@ def multiprocess_tfidf(combo, df, training_labels):
     )
     try:
         training_guess = tfidf_cosine_matches(df, tfidf, "tokens_rep_extra", THRESH = combo['threshold'])
+        results = check_training_results(training_labels, training_guess)
+        combo['score'] = results['score']
+        combo['precision'] = results['precision']
+        combo['recall'] = results['recall']
+
+    except:
+        pass
+    return combo
+
+def multiprocess_doc2vec(combo, tagged_data, training_labels, doc_ids):
+    model = gensim.models.doc2vec.Doc2Vec(
+        vector_size=combo['vector_size'], 
+        min_count=combo['min_count'], 
+        epochs = combo['epochs'],
+        window= combo['window'],
+        dm= combo['dm'],
+        hs = combo['hs']
+        )
+    model.build_vocab(tagged_data)
+    model.train(tagged_data, total_examples=model.corpus_count, epochs=combo['epochs'])
+
+    
+    try:
+        training_guess = create_guess_output_d2v(model, doc_ids, THRESH = combo['threshold'])
         results = check_training_results(training_labels, training_guess)
         combo['score'] = results['score']
         combo['precision'] = results['precision']
