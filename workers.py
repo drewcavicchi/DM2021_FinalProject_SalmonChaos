@@ -294,8 +294,7 @@ def create_guess_output_d2v(model, doc_ids, THRESH):
     output_df = pd.DataFrame(dict_list)
     return output_df
 
-def multiprocess_tfidf(combo, df, training_labels):
-    print(combo)
+def multiprocess_tfidf_tmp(combo, df, training_labels, match_df):
     tfidf = TfidfVectorizer(
         # ngram_range = combo['ngram_range'],
         # max_df = combo['max_df'],
@@ -308,18 +307,64 @@ def multiprocess_tfidf(combo, df, training_labels):
         tokenizer=fake_tokenizer,
         lowercase=False
     )
-    try:
-        training_guess = tfidf_cosine_matches(df, tfidf, "tokens_rep_extra", THRESH = combo['threshold'])
-        results = check_training_results(training_labels, training_guess)
-        combo['score'] = results['score']
-        combo['precision'] = results['precision']
-        combo['recall'] = results['recall']
 
-    except:
-        pass
+
+    # try:
+    training_guess = tfidf_cosine_matches(df, tfidf, "tokens_rep_extra", THRESH = combo['threshold'])
+    
+    one_match_list = list()
+    for ind in match_df.index:
+        id_1 = match_df['id_1'][ind]
+        id_2 = match_df['id_2'][ind]
+        one_match_list.append([id_1, id_2])
+        one_match_list.append([id_2, id_1])
+
+    for ind in training_guess.index:
+        test = training_guess['Test'][ind]
+        reference = training_guess['Reference'][ind]
+        if [test, reference] not in one_match_list:
+            training_guess = training_guess.drop(index=ind)
+
+    results = check_training_results(training_labels, training_guess)    
+
+    combo['score'] = results['score']
+    combo['precision'] = results['precision']
+    combo['recall'] = results['recall']
+
+    # except:
+    #     pass
     return combo
 
-def multiprocess_doc2vec(combo, tagged_data, training_labels, doc_ids):
+def multiprocess_tfidf(combo, df, training_labels):
+    tfidf = TfidfVectorizer(
+        # ngram_range = combo['ngram_range'],
+        # max_df = combo['max_df'],
+        # min_df = combo['min_df'],
+        # binary = combo['binary'],
+        # norm = combo['norm'],
+        # use_idf = combo['use_idf'],
+        # smooth_idf = combo['smooth_idf'],
+        # sublinear_tf = combo['sublinear_tf'],
+        tokenizer=fake_tokenizer,
+        lowercase=False
+    )
+
+
+    # try:
+    training_guess = tfidf_cosine_matches(df, tfidf, "tokens_rep_extra", THRESH = combo['threshold'])
+
+
+    results = check_training_results(training_labels, training_guess)    
+
+    combo['score'] = results['score']
+    combo['precision'] = results['precision']
+    combo['recall'] = results['recall']
+
+    # except:
+    #     pass
+    return combo
+
+def multiprocess_doc2vec(combo, tagged_data, training_labels, doc_ids, test_ids):
     model = gensim.models.doc2vec.Doc2Vec(
         vector_size=combo['vector_size'], 
         min_count=combo['min_count'], 
@@ -334,6 +379,9 @@ def multiprocess_doc2vec(combo, tagged_data, training_labels, doc_ids):
     
     try:
         training_guess = create_guess_output_d2v(model, doc_ids, THRESH = combo['threshold'])
+        training_guess = training_guess.loc[training_guess['Test'].isin(test_ids)]
+        training_guess = training_guess.loc[training_guess['Reference'].isin(test_ids)]
+
         results = check_training_results(training_labels, training_guess)
         combo['score'] = results['score']
         combo['precision'] = results['precision']
